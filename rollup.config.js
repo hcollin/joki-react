@@ -18,7 +18,7 @@ export default [
                 moduleDirectory: "node_modules",
             }),
         ],
-        external: ["react", "react-dom", "uuid"],
+        external: ["react", "react-dom", "joki"],
         globals: {
             react: "React",
         },

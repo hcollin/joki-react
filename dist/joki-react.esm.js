@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 
 const _DEFAULTOPTIONS = {
     initialValue: null,
@@ -20,7 +20,7 @@ function getInitialServiceState(joki, serviceId) {
     });
 }
 
-export default function useService(serviceId, jokiInstance, options = _DEFAULTOPTIONS) {
+function useService(serviceId, jokiInstance, options = _DEFAULTOPTIONS) {
     const [serviceState, setServiceState] = useState(options.initialValue);
 
     // Get initial state from Joki service
@@ -54,3 +54,7 @@ export default function useService(serviceId, jokiInstance, options = _DEFAULTOP
 
     return [serviceState];
 }
+
+const identifier = "0.1.0";
+
+export { useService, identifier };

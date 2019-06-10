@@ -1,4 +1,8 @@
-import { useState, useEffect } from "react";
+'use strict';
+
+Object.defineProperty(exports, '__esModule', { value: true });
+
+var react = require('react');
 
 const _DEFAULTOPTIONS = {
     initialValue: null,
@@ -20,11 +24,11 @@ function getInitialServiceState(joki, serviceId) {
     });
 }
 
-export default function useService(serviceId, jokiInstance, options = _DEFAULTOPTIONS) {
-    const [serviceState, setServiceState] = useState(options.initialValue);
+function useService(serviceId, jokiInstance, options = _DEFAULTOPTIONS) {
+    const [serviceState, setServiceState] = react.useState(options.initialValue);
 
     // Get initial state from Joki service
-    useEffect(() => {
+    react.useEffect(() => {
         async function initializeHookData() {
             const results = await getInitialServiceState(jokiInstance, serviceId);
             if (results instanceof Promise) {
@@ -39,7 +43,7 @@ export default function useService(serviceId, jokiInstance, options = _DEFAULTOP
     }, [serviceId, jokiInstance]);
 
     // Listen for full data updates
-    useEffect(() => {
+    react.useEffect(() => {
         const fullUpdateKey = jokiInstance.options("fullUpdateEventKey")
             ? jokiInstance.options("fullUpdateEventKey")
             : "fullUpdate";
@@ -54,3 +58,8 @@ export default function useService(serviceId, jokiInstance, options = _DEFAULTOP
 
     return [serviceState];
 }
+
+const identifier = "0.1.0";
+
+exports.useService = useService;
+exports.identifier = identifier;
