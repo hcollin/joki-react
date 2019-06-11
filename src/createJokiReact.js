@@ -1,32 +1,23 @@
 import { createJoki } from 'joki';
 
-export default function createJokiReact() {
+/**
+ * 
+ * @typedef {Object} masterOptions - Main options given for React-Joki integration
+ * @property {Object} jokiOptions - 
+ * 
+ * 
+ * @typedef
+ * 
+ * @param {Object} options 
+ */
+export default function createJokiReact(options) {
 
-    const joki = createJoki();
-    
+    const joki = createJoki(options.joki ? options.joki : {});
 
-    function trigger(jokiEvent) {
-        return joki.trigger(jokiEvent);
-    }
 
-    function broadcast(jokiEvent) {
-        return joki.broadcast(jokiEvent);
-    }
 
-    function ask(jokiEvent) {
-        return joki.ask(jokiEvent);
-    }
-
-    function on(jokiSubscriber) {
-        return joki.on(jokiSubscriber);
-    }
 
     return {
-        joki,
-        trigger,
-        ask,
-        on,
-        broadcast
-
+        joki
     }
 }

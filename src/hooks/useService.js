@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 const _DEFAULTOPTIONS = {
-    initialValue: null,
-    testEnvironment: false,
-    act: () => {},
+    initialValue: null
 };
 
 function getInitialServiceState(joki, serviceId) {
@@ -52,5 +50,33 @@ export default function useService(serviceId, jokiInstance, options = _DEFAULTOP
         });
     }, [serviceId, jokiInstance]);
 
-    return [serviceState];
+
+    const ask = useCallback(async (key, body=undefined, options={}) => {
+        const eventObject = {
+            to: serviceId,
+            key: key,
+            async: options.async !== undefined ? options.async : true
+        };
+        if(body !== undefined) {
+            eventObject.body = body
+        }
+        const results = await jokiInstance.ask(eventObject);
+        return results[serviceId];
+        
+    }, [serviceId]);
+
+    const trigger = useCallback( (key, body, options={}) => {
+        const eventObject = {
+            to: serviceId,
+            key: key,
+            async: options.async !== undefined ? options.async : true
+        };
+        if(body !== undefined) {
+            eventObject.body = body
+        }
+
+        jokiInstance.trigger(eventObject);
+    }, [serviceId]);
+
+    return [serviceState, {ask, trigger}];
 }

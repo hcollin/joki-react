@@ -1,4 +1,10 @@
 {
   "version": "v1",
-  "packages": {}
+  "packages": {
+    "joki": {
+      "signature": "cb44c306448c09f9de61a4818f51ba07",
+      "file": true,
+      "replaced": "^0.9.1"
+    }
+  }
 }

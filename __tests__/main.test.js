@@ -1,5 +1,5 @@
 const JokiReact = require("../dist/joki-react.umd");
-const { createJoki, createMockService } = require("joki");
+const { createJoki, createMockService, createMapService } = require("joki");
 const { useState } = require("react");
 
 const { renderHook, act } = require("react-hooks-testing-library");
@@ -12,7 +12,7 @@ describe("Testing joki-react package", () => {
     it("joki-react export validation", () => {
         expect(typeof JokiReact.useService).toBe("function");
     });
-
+    
     it("Test that joki version and createMockService available", async () => {
         const joki = createJoki();
         createMockService(joki, "Service", {
@@ -92,6 +92,9 @@ describe("userService Hook", () => {
 
         // Initial data from hook is null, untile the first request from service is recieved
         expect(result.current[0]).toEqual(null);
+        expect(typeof result.current[1].ask).toBe("function");
+        expect(typeof result.current[1].trigger).toBe("function");
+        expect(Object.keys(result.current[1])).toEqual(["ask", "trigger"]);
 
         // Wait for the initial update
         await act(() => waitForNextUpdate());
@@ -114,7 +117,10 @@ describe("userService Hook", () => {
         configureJoki(joki);
         createMapService(joki, {
             serviceId: "MapService",
-            data: new Map([["foo", "bar"]]),
+            initial: {
+                setWhenCreated: true,
+                data:  new Map([["foo", "bar"]]),
+            }
         });
         expect(joki.listServices()).toEqual(["MapService"]);
         expect(await joki.ask({ to: "MapService", key: "get", body: "foo", async: false })).toEqual({
@@ -151,10 +157,8 @@ describe("userService Hook", () => {
 
         const mustBeCalled = jest.fn();
         events[getStateKey] = event => {
-
             return new Promise((res, rej) => {
                 setTimeout(() => {
-                    console.log("Here comes the FOO!");
                     mustBeCalled();
                     res("foo");
                 }, 1000);
@@ -170,85 +174,123 @@ describe("userService Hook", () => {
         expect(result.current[0]).toEqual(null);
         await act(() => waitForNextUpdate());
         expect(result.current[0]).toEqual("foo");
-        
+
         expect(mustBeCalled).toBeCalledTimes(1);
     });
-});
 
-describe("dummy createMapService tests until joki 0.9.2 is released", () => {
-    it("Creating Service", async () => {
+    it("Testing Service trigger and ask", async () => {
         const joki = createJoki();
-        joki.options("fullUpdateEventKey", "fullUpdate"); // The key is not available in 0.9.1 yet.
-        const initData = new Map([["foo", "bar"]]);
-
-        const updateEvent = jest.fn();
-
-        createMapService(joki, {
-            data: initData,
-        });
-        expect(joki.listServices()).toEqual(["MapService"]);
+        configureJoki(joki);
+        const events = {
+            test: "bar",
+            resend: () => {
+                joki.trigger({
+                    key: "Update",
+                    body: "foo"
+                });
+            },
+            "Update": () => {
+                // This must not trigger
+                expect(true).toBe(false);
+            }
+        };
+        createMockService(joki, "Service", events);
 
         joki.on({
-            from: "MapService",
-            key: joki.options("fullUpdateEventKey"),
-            fn: event => {
-                updateEvent();
-            },
+            key: "Update",
+            fn: (event) => {
+                expect(event.body).toBe("foo");
+            }
         });
 
-        expect(await joki.ask({ to: "MapService", key: "get", body: "foo", async: false })).toEqual({
-            MapService: "bar",
-        });
-        joki.trigger({
-            to: "MapService",
-            key: "set",
-            body: {
-                key: "foo",
-                value: "foo",
-            },
-        });
+        const { result, waitForNextUpdate } = renderHook(() => JokiReact.useService("Service", joki));
 
-        expect(await joki.ask({ to: "MapService", key: "get", body: "foo", async: false })).toEqual({
-            MapService: "foo",
-        });
-        expect(updateEvent).toBeCalledTimes(1);
+        expect(result.current[0]).toEqual(null);
+        await act(() => waitForNextUpdate());
+
+        const Service = result.current[1];
+        const res = await Service.ask("test");
+        expect(res).toBe("bar");
+        
+        Service.trigger("resend");
+        expect.assertions(3);
     });
 });
 
-function createMapService(joki, options) {
-    const serviceId = options.serviceData ? options.serviceData : "MapService";
+// describe("dummy createMapService tests until joki 0.9.2 is released", () => {
+//     it("Creating Service", async () => {
+//         const joki = createJoki();
+//         joki.options("fullUpdateEventKey", "fullUpdate"); // The key is not available in 0.9.1 yet.
+//         const initData = new Map([["foo", "bar"]]);
 
-    const data = new Map(options.data !== undefined ? options.data : []);
+//         const updateEvent = jest.fn();
 
-    function eventHandler(event) {
-        if (event.to === serviceId && event.key === joki.options("serviceGetStateEventKey")) {
-            return new Map(data);
-        }
+//         createMapService(joki, {
+//             data: initData,
+//         });
+//         expect(joki.listServices()).toEqual(["MapService"]);
 
-        switch (event.key) {
-            case "get":
-                return data.get(event.body);
-            case "set":
-                data.set(event.body.key, event.body.value);
-                triggerUpdateEvent();
-                break;
-            default:
-                break;
-        }
-    }
+//         joki.on({
+//             from: "MapService",
+//             key: joki.options("fullUpdateEventKey"),
+//             fn: event => {
+//                 updateEvent();
+//             },
+//         });
 
-    function triggerUpdateEvent() {
-        const updateKey = joki.options("fullUpdateEventKey");
-        joki.broadcast({
-            from: serviceId,
-            key: updateKey,
-            servicesOnly: false,
-            body: new Map(data),
-        });
-    }
+//         expect(await joki.ask({ to: "MapService", key: "get", body: "foo", async: false })).toEqual({
+//             MapService: "bar",
+//         });
+//         joki.trigger({
+//             to: "MapService",
+//             key: "set",
+//             body: {
+//                 key: "foo",
+//                 value: "foo",
+//             },
+//         });
 
-    joki.addService({
-        id: serviceId,
-        fn: eventHandler,
-    });
-}
+//         expect(await joki.ask({ to: "MapService", key: "get", body: "foo", async: false })).toEqual({
+//             MapService: "foo",
+//         });
+//         expect(updateEvent).toBeCalledTimes(1);
+//     });
+// });
+
+// function createMapService(joki, options) {
+//     const serviceId = options.serviceData ? options.serviceData : "MapService";
+
+//     const data = new Map(options.data !== undefined ? options.data : []);
+
+//     function eventHandler(event) {
+//         if (event.to === serviceId && event.key === joki.options("serviceGetStateEventKey")) {
+//             return new Map(data);
+//         }
+
+//         switch (event.key) {
+//             case "get":
+//                 return data.get(event.body);
+//             case "set":
+//                 data.set(event.body.key, event.body.value);
+//                 triggerUpdateEvent();
+//                 break;
+//             default:
+//                 break;
+//         }
+//     }
+
+//     function triggerUpdateEvent() {
+//         const updateKey = joki.options("fullUpdateEventKey");
+//         joki.broadcast({
+//             from: serviceId,
+//             key: updateKey,
+//             servicesOnly: false,
+//             body: new Map(data),
+//         });
+//     }
+
+//     joki.addService({
+//         id: serviceId,
+//         fn: eventHandler,
+//     });
+// }
